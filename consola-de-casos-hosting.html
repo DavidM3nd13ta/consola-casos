@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consola de Casos — Soporte TI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#0A1F17;
+    --forest:#123829;
+    --pine:#1F6F4A;
+    --pine-hover:#175C3B;
+    --signal:#2FD37E;
+    --signal-dim:#B7F0D1;
+    --paper:#F2F8F5;
+    --surface:#FFFFFF;
+    --amber:#B4790A;
+    --amber-soft:#FCF0D8;
+    --slate:#48564F;
+    --slate-soft:#E9EEEB;
+    --danger:#B23B34;
+    --danger-soft:#FBE3E1;
+    --green-soft:#E1F3E9;
+    --border:#DCE7E1;
+    --shadow: 0 10px 28px -16px rgba(10,31,23,0.28);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  .statusbar{
+    background:var(--forest); color:#EAF6EF;
+    padding:9px 26px; display:flex; align-items:center; justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace; font-size:12px;
+  }
+  .statusbar .left{display:flex; align-items:center; gap:10px;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--signal); animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+  .statusbar .brand{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.02em; color:#fff;}
+
+  .wrap{max-width:1220px; margin:0 auto; padding:34px 26px 70px;}
+
+  .hero{display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:18px; margin-bottom:26px;}
+  .hero h1{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:30px; margin:0 0 4px; color:var(--forest);}
+  .hero p{margin:0; color:var(--slate); font-size:13.5px;}
+
+  .controls{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:12px 16px; box-shadow:var(--shadow); margin-bottom:24px;
+  }
+  .controls .grp{display:flex; align-items:center; gap:8px;}
+  .controls label{font-size:11px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.06em;}
+  .controls input[type=date]{
+    font-family:'IBM Plex Mono',monospace; font-size:13px; border:1px solid var(--border);
+    border-radius:8px; padding:6px 9px; background:var(--paper); color:var(--ink);
+  }
+  .seg{display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden;}
+  .seg button{
+    border:none; background:var(--surface); color:var(--slate); font-family:'Inter',sans-serif;
+    font-size:12.5px; font-weight:600; padding:7px 13px; cursor:pointer; transition:all .15s ease;
+  }
+  .seg button.active{background:var(--pine); color:#fff;}
+  .seg button:not(.active):hover{background:var(--paper);}
+
+  .kpi-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:26px;}
+  .kpi{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 15px; box-shadow:var(--shadow); border-top:3px solid var(--pine);}
+  .kpi.cerrados{border-top-color:var(--pine);}
+  .kpi.pendientes{border-top-color:var(--amber);}
+  .kpi.curso{border-top-color:var(--slate);}
+  .kpi.pct{border-top-color:var(--signal);}
+  .kpi .num{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:27px; color:var(--forest);}
+  .kpi .lbl{font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate); margin-top:3px; font-weight:600;}
+
+  .section-title{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600; color:var(--forest); margin:30px 0 12px;}
+
+  .charts-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:8px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow);}
+  .card h3{margin:0 0 10px; font-family:'Space Grotesk',sans-serif; font-size:13.5px; font-weight:600; color:var(--forest);}
+
+  .heat-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .heat-scroll{overflow-x:auto;}
+  .heat-table{border-collapse:collapse; font-family:'IBM Plex Mono',monospace; font-size:9.5px;}
+  .heat-table td{width:13px; height:13px; border-radius:3px; padding:0;}
+  .heat-table td.cell{border:2px solid var(--surface);}
+  .heat-table .daylabel{width:26px; color:var(--slate); font-size:9px; text-align:right; padding-right:5px; border:none;}
+  .heat-table .monthlabel{color:var(--slate); font-size:9px; text-align:left; border:none; font-weight:600;}
+  .heat-caption{font-size:10.5px; color:var(--slate); font-style:italic; margin-top:8px;}
+
+  .form-card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); margin-bottom:16px;}
+  .form-grid{display:grid; grid-template-columns:1.5fr 1fr 1fr 1.8fr auto; gap:9px; align-items:end;}
+  .field label{display:block; font-size:10.5px; font-weight:600; color:var(--pine); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;}
+  .field input, .field select{width:100%; padding:8px 9px; border:1px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13px; background:var(--paper); color:var(--ink);}
+  .btn-add{background:var(--pine); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;}
+  .btn-add:hover{background:var(--pine-hover);}
+
+  .tabs{display:flex; gap:6px; margin-bottom:12px;}
+  .tab{border:1px solid var(--border); background:var(--surface); color:var(--slate); font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; padding:7px 15px; border-radius:8px; cursor:pointer;}
+  .tab.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+
+  .ledger{background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow);}
+  .row{display:grid; grid-template-columns:6px 1.5fr 1fr 1fr 1.9fr 1fr auto; align-items:center; border-bottom:1px solid var(--border);}
+  .row:last-child{border-bottom:none;}
+  .row.head{background:var(--paper);}
+  .row.head>div{padding:10px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--slate);}
+  .row .bar{height:100%; min-height:48px;}
+  .row.cerrado .bar{background:var(--pine);}
+  .row.pendiente .bar{background:var(--amber);}
+  .row.curso .bar{background:var(--slate);}
+  .row.dup{background:var(--danger-soft);}
+  .row.dup .bar{background:var(--danger);}
+  .row>div{padding:11px 12px; font-size:12.5px;}
+  .row .caso{font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--ink); font-size:12px;}
+  .row.dup .caso{color:var(--danger);}
+  .row .fecha{font-family:'IBM Plex Mono',monospace; color:var(--slate); font-size:11.5px;}
+  .pill{display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase;}
+  .pill.cerrado{background:var(--green-soft); color:var(--pine);}
+  .pill.pendiente{background:var(--amber-soft); color:var(--amber);}
+  .pill.curso{background:var(--slate-soft); color:var(--slate);}
+  .row .obs{color:var(--slate); font-size:11.5px;}
+  .row .actions{display:flex; gap:5px; padding-right:12px;}
+  .icon-btn{border:none; background:transparent; cursor:pointer; color:var(--slate); width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:13px;}
+  .icon-btn:hover{background:var(--danger-soft); color:var(--danger);}
+  .empty{padding:32px 18px; text-align:center; color:var(--slate); font-size:13px;}
+
+  .footer-note{margin-top:20px; font-size:11.5px; color:var(--slate); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .reset-link{background:none; border:none; color:var(--slate); text-decoration:underline; cursor:pointer; font-size:11.5px; font-family:'Inter',sans-serif;}
+  .reset-link:hover{color:var(--danger);}
+
+  @media (max-width:900px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .charts-grid{grid-template-columns:1fr;}
+    .heat-grid{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
+    .row{grid-template-columns:6px 1fr;}
+    .row.head{display:none;}
+    .row>div{padding:4px 12px;}
+    .row .bar{min-height:8px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="statusbar">
+  <div class="left"><span class="dot"></span><span class="brand">CONSOLA · SOPORTE TI</span></div>
+  <div id="clock"></div>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <h1>Consola de casos</h1>
+      <p>Registro, seguimiento y análisis de Requerimientos e Incidentes.</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="grp"><label>Desde</label><input type="date" id="desde"></div>
+    <div class="grp"><label>Hasta</label><input type="date" id="hasta"></div>
+    <div class="grp">
+      <label>Analizar por</label>
+      <div class="seg" id="modeSeg">
+        <button data-mode="gestion" class="active">Fecha de gestión</button>
+        <button data-mode="cierre">Fecha de cierre</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi total"><div class="num mono" id="kpiTotal">0</div><div class="lbl">Total casos</div></div>
+    <div class="kpi cerrados"><div class="num mono" id="kpiCerrados">0</div><div class="lbl">Cerrados</div></div>
+    <div class="kpi pendientes"><div class="num mono" id="kpiPendientes">0</div><div class="lbl">Pendientes</div></div>
+    <div class="kpi curso"><div class="num mono" id="kpiCurso">0</div><div class="lbl">En curso</div></div>
+    <div class="kpi pct"><div class="num mono" id="kpiPct">0%</div><div class="lbl">% Cerrados</div></div>
+  </div>
+
+  <div class="section-title">Análisis</div>
+  <div class="charts-grid">
+    <div class="card"><h3>Evolución mensual</h3><div style="position:relative;height:190px;"><canvas id="chartEvol" role="img" aria-label="Casos gestionados por mes"></canvas></div></div>
+    <div class="card"><h3>Distribución por estado</h3><div style="position:relative;height:190px;"><canvas id="chartDonut" role="img" aria-label="Distribución de casos por estado"></canvas></div></div>
+    <div class="card"><h3>Casos por día de la semana</h3><div style="position:relative;height:190px;"><canvas id="chartWeekday" role="img" aria-label="Casos por día de la semana"></canvas></div></div>
+    <div class="card"><h3>Requerimientos vs Incidentes</h3><div style="position:relative;height:190px;"><canvas id="chartReqInc" role="img" aria-label="Comparación de requerimientos e incidentes"></canvas></div></div>
+  </div>
+
+  <div class="section-title">Mapa de actividad — últimos 3 meses</div>
+  <div class="heat-grid">
+    <div class="card"><h3>Casos gestionados</h3><div class="heat-scroll" id="heatGestion"></div><div class="heat-caption">Más claro = menos casos · Más oscuro = más casos</div></div>
+    <div class="card"><h3>Casos cerrados</h3><div class="heat-scroll" id="heatCierre"></div><div class="heat-caption">Más claro = menos casos · Más oscuro = más casos</div></div>
+  </div>
+
+  <div class="section-title">Registrar caso</div>
+  <div class="form-card">
+    <div class="form-grid">
+      <div class="field"><label>Caso</label><input type="text" id="fCaso" placeholder="REQ0001 / INC0001"></div>
+      <div class="field"><label>Fecha</label><input type="date" id="fFecha"></div>
+      <div class="field"><label>Estado</label>
+        <select id="fEstado">
+          <option value="CERRADO">Cerrado</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="EN CURSO" selected>En curso</option>
+        </select>
+      </div>
+      <div class="field"><label>Observaciones</label><input type="text" id="fObs" placeholder="Notas o detalles"></div>
+      <button class="btn-add" id="btnAdd">+ Registrar</button>
+    </div>
+  </div>
+
+  <div class="section-title">Casos <span class="mono" id="rowCount" style="font-size:12px;color:var(--slate);"></span></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="todos">TODOS</button>
+    <button class="tab" data-tab="req">REQ</button>
+    <button class="tab" data-tab="inc">INC</button>
+  </div>
+
+  <div class="ledger">
+    <div class="row head">
+      <div></div><div>Caso</div><div>Fecha</div><div>Estado</div><div>Observaciones</div><div>Cierre</div><div></div>
+    </div>
+    <div id="tableBody"></div>
+  </div>
+
+  <div class="footer-note">
+    <span>La fecha de cierre se completa sola al marcar un caso como CERRADO. Los casos se guardan en este navegador.</span>
+    <button class="reset-link" id="btnReset">Borrar todos los datos</button>
+  </div>
+</div>
+
+<script>
+const STATUS_META = {
+  "CERRADO":{cls:"cerrado",label:"Cerrado"},
+  "PENDIENTE":{cls:"pendiente",label:"Pendiente"},
+  "EN CURSO":{cls:"curso",label:"En curso"},
+};
+const seedCases = [
+  {id:"s1",caso:"REQ0312810",fecha:"2026-08-13",estado:"CERRADO",obs:"Renovación Barrancabermeja",cierre:"2026-08-13"},
+  {id:"s2",caso:"INC0207089",fecha:"2026-08-12",estado:"CERRADO",obs:"Conexión Cisco",cierre:"2026-08-12"},
+  {id:"s3",caso:"REQ0314893",fecha:"2026-08-13",estado:"CERRADO",obs:"Conexión Cisco",cierre:""},
+  {id:"s4",caso:"INC0207099",fecha:"2026-08-12",estado:"CERRADO",obs:"FORMATEO MOISES",cierre:""},
+  {id:"s5",caso:"INC0207140",fecha:"2026-08-13",estado:"PENDIENTE",obs:"PENDIENTE POR CERRAR - TECLADO",cierre:""},
+];
+
+let cases = [];
+let mode = "gestion";
+let activeTab = "todos";
+let charts = {};
+const $ = id => document.getElementById(id);
+
+function tickClock(){
+  $('clock').textContent = new Date().toLocaleString('es-ES',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+tickClock(); setInterval(tickClock,30000);
+
+async function loadCases(){
+  try{
+    const raw = localStorage.getItem('casos_ti');
+    cases = raw ? JSON.parse(raw) : seedCases.slice();
+  }catch(e){ cases = seedCases.slice(); }
+  if(!Array.isArray(cases)) cases = seedCases.slice();
+}
+async function saveCases(){
+  try{ localStorage.setItem('casos_ti', JSON.stringify(cases)); }
+  catch(e){ console.error('storage error', e); }
+}
+
+function fmtDate(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}) : ''; }
+function prefixOf(caso){ return (caso||'').trim().slice(0,3).toUpperCase(); }
+function effDate(c){ return mode==='cierre' ? (c.cierre||null) : (c.fecha||null); }
+function inPeriod(dateStr){
+  const desde=$('desde').value, hasta=$('hasta').value;
+  if(!dateStr) return false;
+  if(desde && dateStr<desde) return false;
+  if(hasta && dateStr>hasta) return false;
+  return true;
+}
+function duplicateSet(){
+  const counts={};
+  cases.forEach(c=>{ if(c.caso){ counts[c.caso]=(counts[c.caso]||0)+1; } });
+  return counts;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function filteredByPeriod(){ return cases.filter(c=>inPeriod(effDate(c))); }
+
+function computeKpis(){
+  const f = filteredByPeriod();
+  const total=f.length, cerrados=f.filter(c=>c.estado==='CERRADO').length,
+        pendientes=f.filter(c=>c.estado==='PENDIENTE').length,
+        curso=f.filter(c=>c.estado==='EN CURSO').length,
+        pct = total? Math.round(cerrados/total*100):0;
+  $('kpiTotal').textContent=total; $('kpiCerrados').textContent=cerrados;
+  $('kpiPendientes').textContent=pendientes; $('kpiCurso').textContent=curso;
+  $('kpiPct').textContent=pct+'%';
+  return f;
+}
+
+function renderTable(){
+  const dupCounts = duplicateSet();
+  let list = cases.slice();
+  if(activeTab==='req') list = list.filter(c=>prefixOf(c.caso)==='REQ');
+  if(activeTab==='inc') list = list.filter(c=>prefixOf(c.caso)==='INC');
+  list.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  $('rowCount').textContent = list.length + ' registrados';
+  const body=$('tableBody');
+  if(list.length===0){ body.innerHTML='<div class="empty">Sin casos en esta vista. Registra el primero arriba.</div>'; return; }
+  body.innerHTML = list.map(c=>{
+    const meta = STATUS_META[c.estado]||STATUS_META['EN CURSO'];
+    const isDup = c.caso && dupCounts[c.caso]>1;
+    return `<div class="row ${meta.cls}${isDup?' dup':''}">
+      <div class="bar"></div>
+      <div class="caso">${escapeHtml(c.caso)}</div>
+      <div class="fecha">${fmtDate(c.fecha)}</div>
+      <div><span class="pill ${meta.cls}">${meta.label}</span></div>
+      <div class="obs">${escapeHtml(c.obs||'')}</div>
+      <div class="fecha">${fmtDate(c.cierre)}</div>
+      <div class="actions"><button class="icon-btn" data-id="${c.id}" title="Eliminar">✕</button></div>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('.icon-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      cases = cases.filter(c=>c.id!==btn.dataset.id);
+      await saveCases(); renderAll();
+    });
+  });
+}
+
+function monthKey(d){ return d.slice(0,7); }
+function renderCharts(filtered){
+  const monthMap={};
+  filtered.forEach(c=>{ const d=effDate(c); if(!d) return; const k=monthKey(d); monthMap[k]=(monthMap[k]||0)+1; });
+  const keys=Object.keys(monthMap).sort();
+  const labels=keys.map(k=>{ const [y,m]=k.split('-'); return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]+' '+y.slice(2); });
+  const vals=keys.map(k=>monthMap[k]);
+
+  if(charts.evol) charts.evol.destroy();
+  charts.evol = new Chart($('chartEvol'), {
+    type:'bar',
+    data:{labels: labels.length?labels:['Sin datos'], datasets:[{data: vals.length?vals:[0], backgroundColor:'#1F6F4A', borderRadius:4, maxBarThickness:34}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{grid:{display:false}}}}
+  });
+
+  const cerrados=filtered.filter(c=>c.estado==='CERRADO').length,
+        pendientes=filtered.filter(c=>c.estado==='PENDIENTE').length,
+        curso=filtered.filter(c=>c.estado==='EN CURSO').length;
+  if(charts.donut) charts.donut.destroy();
+  charts.donut = new Chart($('chartDonut'), {
+    type:'doughnut',
+    data:{labels:['Cerrados','Pendientes','En curso'], datasets:[{data:[cerrados,pendientes,curso], backgroundColor:['#1F6F4A','#B4790A','#48564F'], borderWidth:0}]},
+    options:{responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}}}
+  });
+
+  const dias=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']; const diaCounts=[0,0,0,0,0,0,0];
+  filtered.forEach(c=>{ const d=effDate(c); if(!d) return; const idx=(new Date(d+'T00:00:00').getDay()+6)%7; diaCounts[idx]++; });
+  if(charts.wk) charts.wk.destroy();
+  charts.wk = new Chart($('chartWeekday'), {
+    type:'bar',
+    data:{labels:dias, datasets:[{data:diaCounts, backgroundColor:'#2FD37E', borderRadius:4, maxBarThickness:28}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{grid:{display:false}}}}
+  });
+
+  const reqN=filtered.filter(c=>prefixOf(c.caso)==='REQ').length, incN=filtered.filter(c=>prefixOf(c.caso)==='INC').length;
+  if(charts.ri) charts.ri.destroy();
+  charts.ri = new Chart($('chartReqInc'), {
+    type:'bar',
+    data:{labels:['Requerimientos','Incidentes'], datasets:[{data:[reqN,incN], backgroundColor:['#1F6F4A','#123829'], borderRadius:4, maxBarThickness:60}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true, ticks:{precision:0}}, x:{grid:{display:false}}}}
+  });
+}
+
+function countsByDate(field){
+  const map={};
+  cases.forEach(c=>{ const d=c[field]; if(!d) return; map[d]=(map[d]||0)+1; });
+  return map;
+}
+function buildHeatmap(container, field){
+  const counts = countsByDate(field);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow=(today.getDay()+6)%7;
+  const monday = new Date(today); monday.setDate(monday.getDate()-dow-84);
+  const weeks=13, dias=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  let maxV=1;
+  const grid=[];
+  for(let w=0; w<weeks; w++){ grid.push([]); for(let d=0; d<7; d++){
+    const dt=new Date(monday); dt.setDate(dt.getDate()+w*7+d);
+    const key=dt.toISOString().slice(0,10);
+    const v=counts[key]||0; maxV=Math.max(maxV,v);
+    grid[w].push({date:dt, v});
+  }}
+  const monthNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  let html='<table class="heat-table"><tr><td class="daylabel"></td>';
+  let lastMonth=-1;
+  for(let w=0; w<weeks; w++){
+    const m=grid[w][0].date.getMonth();
+    html += `<td class="monthlabel">${m!==lastMonth?monthNames[m]:''}</td>`;
+    lastMonth=m;
+  }
+  html+='</tr>';
+  for(let d=0; d<7; d++){
+    html+=`<tr><td class="daylabel">${dias[d]}</td>`;
+    for(let w=0; w<weeks; w++){
+      const {v}=grid[w][d];
+      const alpha = v===0? 0 : 0.22 + 0.78*(v/maxV);
+      const bg = v===0? '#E7EFEA' : `rgba(31,111,74,${alpha.toFixed(2)})`;
+      html+=`<td class="cell" style="background:${bg}" title="${v} caso(s)"></td>`;
+    }
+    html+='</tr>';
+  }
+  html+='</table>';
+  container.innerHTML=html;
+}
+
+function renderAll(){
+  renderTable();
+  const f = computeKpis();
+  renderCharts(f);
+  buildHeatmap($('heatGestion'),'fecha');
+  buildHeatmap($('heatCierre'),'cierre');
+}
+
+$('btnAdd').addEventListener('click', async ()=>{
+  const caso=$('fCaso').value.trim(), fecha=$('fFecha').value, estado=$('fEstado').value, obs=$('fObs').value.trim();
+  if(!caso || !fecha){
+    $('fCaso').style.borderColor = caso? 'var(--border)':'var(--danger)';
+    $('fFecha').style.borderColor = fecha? 'var(--border)':'var(--danger)';
+    return;
+  }
+  const cierre = estado==='CERRADO' ? new Date().toISOString().slice(0,10) : '';
+  cases.push({id:'c'+Date.now(), caso, fecha, estado, obs, cierre});
+  $('fCaso').value=''; $('fFecha').value=''; $('fObs').value=''; $('fEstado').value='EN CURSO';
+  await saveCases(); renderAll();
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active'); activeTab=tab.dataset.tab; renderTable();
+  });
+});
+
+document.querySelectorAll('#modeSeg button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); mode=btn.dataset.mode; renderAll();
+  });
+});
+
+$('btnReset').addEventListener('click', async ()=>{
+  if(!confirm('¿Borrar todos los casos guardados? Esta acción no se puede deshacer.')) return;
+  cases=[]; await saveCases(); renderAll();
+});
+$('desde').addEventListener('change', renderAll);
+$('hasta').addEventListener('change', renderAll);
+
+(async function init(){
+  const now=new Date();
+  $('desde').value = `${now.getFullYear()}-01-01`;
+  $('hasta').value = `${now.getFullYear()}-12-31`;
+  await loadCases();
+  renderAll();
+})();
+</script>
+</body>
+</html>
